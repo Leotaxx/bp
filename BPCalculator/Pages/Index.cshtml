@@ -6,33 +6,59 @@
 }
 
 
-<h4>BP Category Calculator</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form method="post" id="form1">
+<section class="bp-hero">
+    <div class="container">
+        <p class="bp-eyebrow">Blood Pressure Insights</p>
+        <h1 class="bp-title">Check your numbers with clear feedback</h1>
+        <p class="bp-subtitle">Get a quick read on your category and pulse pressure to discuss with your clinician.</p>
+    </div>
+</section>
+
+<div class="container bp-grid">
+    <div class="bp-card">
+        <div class="bp-card__header">
+            <div class="bp-chip">Quick check</div>
+            <p class="bp-card__title">Enter your latest reading</p>
+        </div>
+        <form method="post" id="form1" class="bp-form">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
                 <label asp-for="BP.Systolic" class="control-label"></label>
-                <input asp-for="BP.Systolic" class="form-control"/>
+                <input asp-for="BP.Systolic" class="form-control bp-input"/>
                 <span asp-validation-for="BP.Systolic" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <label asp-for="BP.Diastolic" class="control-label"></label>
-                <input asp-for="BP.Diastolic" class="form-control" />
+                <input asp-for="BP.Diastolic" class="form-control bp-input" />
                 <span asp-validation-for="BP.Diastolic" class="text-danger"></span>
             </div>
             <div class="form-group">
-                <input type="submit" value="Submit" class="btn btn-default" />
+                <button type="submit" class="btn bp-btn">Calculate</button>
             </div>
             @if (ViewData.ModelState.IsValid)
             {
-                <div class="form-group">
-                    @Html.DisplayFor(model => model.BP.Category, new { htmlAttributes = new { @class = "form-control" } })
+                <div class="bp-result">
+                    <div class="bp-result__metric">
+                        <p class="bp-label">Category</p>
+                        <p class="bp-value">@Model.BP.Category</p>
+                    </div>
+                    <div class="bp-result__metric">
+                        <p class="bp-label">Pulse Pressure</p>
+                        <p class="bp-value">@Model.BP.PulsePressure mmHg (@Model.BP.PulseCategory)</p>
+                    </div>
                 </div>
             }
         </form>
     </div>
+    <aside class="bp-card bp-card--muted">
+        <p class="bp-card__title">How to measure</p>
+        <ul class="bp-hints">
+            <li>Sit quietly for 5 minutes before measuring.</li>
+            <li>Keep your arm supported at heart level.</li>
+            <li>Take two readings a minute apart and use the average.</li>
+        </ul>
+        <p class="bp-footnote">This tool is informational only and not a medical diagnosis.</p>
+    </aside>
 </div>
 
 @section Scripts {
