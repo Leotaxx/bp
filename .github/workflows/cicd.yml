@@ -82,7 +82,7 @@ jobs:
       contents: read
     env:
       WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
-      STAGING_URL: http://${{ secrets.AZURE_WEBAPP_NAME }}-staging.azurewebsites.net
+      STAGING_URL: ${{ secrets.AZURE_STAGING_URL }}
 
     steps:
       - uses: actions/checkout@v4
