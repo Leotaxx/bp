@@ -1,50 +1,212 @@
-name: CI
+name: CI-CD
 
 on:
   push:
-    branches: [ master, feature/** ]
+    branches:
+      - master
+      - 'feature/**'
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+  workflow_dispatch:
 
 permissions:
   contents: read
   security-events: write
   actions: read
 
+env:
+  DOTNET_VERSION: '9.0.x'
+
 jobs:
+  # ---------------------- CI ----------------------
   build-test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
       - name: Restore
         run: dotnet restore
+
       - name: Code style / analyzers
         run: dotnet format --verify-no-changes
+
       - name: Build
         run: dotnet build --no-restore -warnaserror
+
       - name: Unit & BDD tests with coverage
         run: dotnet test --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: TestResults
+
       - name: Dependency vulnerability scan
         run: dotnet list package --vulnerable || true
 
   codeql:
     needs: build-test
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: csharp
+
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
+
       - name: CodeQL analyze
         uses: github/codeql-action/analyze@v3
+
+  # ---------------------- CD: deploy to staging ----------------------
+  deploy-staging:
+    # only run CD when:
+    # - push to master, OR
+    # - workflow_dispatch
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    needs: codeql
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+      RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+      STAGING_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}-staging.azurewebsites.net
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore & publish
+        run: |
+          dotnet restore
+          dotnet publish BPCalculator/BPCalculator.csproj -c Release -o publish
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0C8F672461C4DF08794CBC1C29908F5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9CB409C1F8ED4FDFAF0DFB92F3924FDE }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C1D5F04E9B1E4596A5E3466609A489D0 }}
+
+      - name: Deploy to staging slot (green)
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          slot-name: staging
+          package: publish
+
+      # ------------------ tests on staging ------------------
+
+      - name: Smoke test staging
+        run: |
+          echo "Running smoke test against $STAGING_URL" | tee deploy.log
+          for i in {1..10}; do
+            if curl -fsS "$STAGING_URL" > /dev/null; then
+              echo "Smoke test passed on attempt $i" | tee -a deploy.log
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5s..." | tee -a deploy.log
+            sleep 5
+          done
+          echo "Smoke test FAILED after 10 attempts" | tee -a deploy.log
+          exit 1
+
+      - name: Lightweight performance test
+        run: |
+          echo "" >> deploy.log
+          echo "Starting lightweight performance test..." | tee -a deploy.log
+          start=$(date +%s)
+          for i in {1..50}; do
+            curl -s -o /dev/null "$STAGING_URL" &
+          done
+          wait
+          end=$(date +%s)
+          duration=$((end-start))
+          echo "50 requests completed in ${duration}s" | tee -a deploy.log
+
+      - name: OWASP ZAP baseline scan (security)
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: ${{ env.STAGING_URL }}
+          fail_action: false
+        continue-on-error: true
+
+      - name: Append ZAP note to log
+        run: echo "ZAP baseline scan executed against $STAGING_URL" >> deploy.log
+
+      - name: Upload staging deploy log
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-deploy-log
+          path: deploy.log
+
+  # ---------------------- CD: promote to production (blue/green swap) ----------------------
+  promote-prod:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+      RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0C8F672461C4DF08794CBC1C29908F5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9CB409C1F8ED4FDFAF0DFB92F3924FDE }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C1D5F04E9B1E4596A5E3466609A489D0 }}
+
+      - name: Swap slots (blue/green)
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp deployment slot swap \
+              --resource-group $RESOURCE_GROUP \
+              --name $WEBAPP_NAME \
+              --slot staging \
+              --target-slot production
+
+      - name: Telemetry / health verification gate
+        env:
+          PROD_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
+        run: |
+          echo "Waiting 30s for production to stabilise..." > release.log
+          sleep 30
+          echo "Checking production health at $PROD_URL" | tee -a release.log
+          if curl -fsS "$PROD_URL" > /dev/null; then
+            echo "Production health check PASSED" | tee -a release.log
+          else
+            echo "Production health check FAILED" | tee -a release.log
+            exit 1
+          fi
+
+      - name: Upload release log
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-log
+          path: release.log
