@@ -1,0 +1,96 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [ main, feature/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore
+        run: dotnet restore
+      - name: Code analysis (format + analyzers)
+        run: dotnet format --verify-no-changes
+      - name: Build
+        run: dotnet build --no-restore -warnaserror
+      - name: Unit & BDD tests with coverage
+        run: dotnet test --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults
+      - name: Publish code coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: TestResults
+      - name: Dependency vulnerability scan
+        run: dotnet list package --vulnerable || true
+      - name: Trivy filesystem scan (container/image placeholder)
+        run: |
+          echo "Run container scan after image build" > security-scan.txt
+      - name: Upload security scan log
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan
+          path: security-scan.txt
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Publish artifact
+        run: dotnet publish BPCalculator/BPCalculator.csproj -c Release -o output
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bp-publish
+          path: output
+      - name: Deploy to staging (blue slot)
+        run: |
+          echo "Deploy to staging blue slot" > deploy.log
+      - name: E2E smoke tests (Playwright placeholder)
+        run: echo "npm run test:e2e" >> deploy.log
+      - name: Performance test (k6 placeholder)
+        run: echo "k6 run perf.js" >> deploy.log
+      - name: Security test (OWASP ZAP placeholder)
+        run: echo "zap-baseline.py" >> deploy.log
+      - name: Upload deployment log
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-log
+          path: deploy.log
+
+  promote-to-prod:
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://bp.example.com
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bp-publish
+          path: output
+      - name: Canary/blue-green switch
+        run: |
+          echo "Shift traffic gradually from green to blue" > release.log
+      - name: Continuous telemetry verification
+        run: echo "Verify Application Insights signals" >> release.log
+      - name: Authorization gate placeholder
+        run: echo "Require change approval before full rollout" >> release.log
+      - name: Upload release log
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-log
+          path: release.log

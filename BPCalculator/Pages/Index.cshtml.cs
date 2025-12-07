@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using BPCalculator.Telemetry;
 
 // page model
 
@@ -9,6 +10,12 @@ namespace BPCalculator.Pages
     {
         [BindProperty]                              // bound on POST
         public BloodPressure BP { get; set; }
+        private readonly IBPTelemetry _telemetry;
+
+        public BloodPressureModel(IBPTelemetry telemetry)
+        {
+            _telemetry = telemetry;
+        }
 
         // setup initial data
         public void OnGet()
@@ -23,6 +30,10 @@ namespace BPCalculator.Pages
             if (!(BP.Systolic > BP.Diastolic))
             {
                 ModelState.AddModelError("", "Systolic must be greater than Diastolic");
+            }
+            if (ModelState.IsValid)
+            {
+                _telemetry.TrackSubmission(BP);
             }
             return Page();
         }
