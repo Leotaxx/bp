@@ -23,10 +23,12 @@ jobs:
         run: |
           dotnet restore
           dotnet publish BPCalculator/BPCalculator.csproj -c Release -o publish
-      - name: Azure login
+      - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0C8F672461C4DF08794CBC1C29908F5 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9CB409C1F8ED4FDFAF0DFB92F3924FDE }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C1D5F04E9B1E4596A5E3466609A489D0 }}
       - name: Deploy to staging slot
         uses: azure/webapps-deploy@v3
         with:
