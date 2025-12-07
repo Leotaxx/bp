@@ -79,11 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     permissions:
-      id-token: write
       contents: read
     env:
       WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
-      RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
       STAGING_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}-staging.azurewebsites.net
 
     steps:
@@ -99,20 +97,19 @@ jobs:
           dotnet restore
           dotnet publish BPCalculator/BPCalculator.csproj -c Release -o publish
 
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0C8F672461C4DF08794CBC1C29908F5 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9CB409C1F8ED4FDFAF0DFB92F3924FDE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C1D5F04E9B1E4596A5E3466609A489D0 }}
-
-
-      - name: Deploy to staging slot (green)
+      - name: Deploy to staging slot (green) via publish profile
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           slot-name: staging
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: publish
+
+      - name: Upload web app artifact for prod promotion
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-publish
+          path: publish
 
       # ------------------ tests on staging ------------------
 
@@ -159,36 +156,30 @@ jobs:
           name: staging-deploy-log
           path: deploy.log
 
-  # ---------------------- CD: promote to production (blue/green swap) ----------------------
+  # ---------------------- CD: promote to production ----------------------
   promote-prod:
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
     needs: deploy-staging
     runs-on: ubuntu-latest
     environment: production
     permissions:
-      id-token: write
       contents: read
     env:
       WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
-      RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
 
     steps:
-      - name: Login to Azure
-        uses: azure/login@v2
+      - name: Download web app artifact
+        uses: actions/download-artifact@v4
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_F0C8F672461C4DF08794CBC1C29908F5 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9CB409C1F8ED4FDFAF0DFB92F3924FDE }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C1D5F04E9B1E4596A5E3466609A489D0 }}
+          name: webapp-publish
+          path: publish
 
-      - name: Swap slots (blue/green)
-        uses: azure/cli@v2
+      - name: Deploy to production via publish profile
+        uses: azure/webapps-deploy@v3
         with:
-          inlineScript: |
-            az webapp deployment slot swap \
-              --resource-group $RESOURCE_GROUP \
-              --name $WEBAPP_NAME \
-              --slot staging \
-              --target-slot production
+          app-name: ${{ env.WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish
 
       - name: Telemetry / health verification gate
         env:
