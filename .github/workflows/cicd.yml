@@ -39,8 +39,8 @@ jobs:
 
       - name: Build
         run: dotnet build --no-restore -warnaserror
-      - name: Unit tests with coverage
-        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build --collect:"XPlat Code Coverage" --results-directory ./TestResults/unit
+      - name: Unit tests with coverage (80% gate)
+        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=total
       - name: BDD tests
         run: dotnet test BPCalculator.BddTests/BPCalculator.BddTests.csproj --no-build --results-directory ./TestResults/bdd
 
@@ -52,6 +52,13 @@ jobs:
 
       - name: Dependency vulnerability scan
         run: dotnet list package --vulnerable || true
+
+      - name: Upload coverage (unit)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: TestResults/unit
 
   codeql:
     needs: build-test
@@ -116,6 +123,20 @@ jobs:
 
       # ------------------ tests on staging ------------------
 
+      - name: E2E tests (Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps
+        working-directory: e2e
+      - name: Run Playwright tests
+        run: npm test
+        working-directory: e2e
+        env:
+          BASE_URL: ${{ env.STAGING_URL }}
+
       - name: Smoke test staging
         run: |
           echo "Running smoke test against $STAGING_URL" | tee deploy.log
@@ -130,24 +151,18 @@ jobs:
           echo "Smoke test FAILED after 10 attempts" | tee -a deploy.log
           exit 1
 
-      - name: Lightweight performance test
-        run: |
-          echo "" >> deploy.log
-          echo "Starting lightweight performance test..." | tee -a deploy.log
-          start=$(date +%s)
-          for i in {1..50}; do
-            curl -s -o /dev/null "$STAGING_URL" &
-          done
-          wait
-          end=$(date +%s)
-          duration=$((end-start))
-          echo "50 requests completed in ${duration}s" | tee -a deploy.log
+      - name: Performance test (k6)
+        uses: grafana/setup-k6-action@v1
+      - run: k6 run perf/smoke.js
+        env:
+          BASE_URL: ${{ env.STAGING_URL }}
 
       - name: OWASP ZAP baseline scan (security)
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ env.STAGING_URL }}
           fail_action: false
+          token: ''   # disable GH issue creation
         continue-on-error: true
 
       - name: Append ZAP note to log
