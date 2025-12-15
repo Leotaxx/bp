@@ -8,8 +8,12 @@ namespace BPCalculator.Tests
     {
         [Theory]
         [InlineData(150, 95, BPCategory.High)]
+        [InlineData(140, 75, BPCategory.High)]       // systolic boundary
+        [InlineData(125, 90, BPCategory.High)]       // diastolic boundary
         [InlineData(130, 85, BPCategory.PreHigh)]
+        [InlineData(118, 80, BPCategory.PreHigh)]    // diastolic pre-high boundary
         [InlineData(85, 55, BPCategory.Low)]
+        [InlineData(100, 59, BPCategory.Low)]        // diastolic low boundary
         [InlineData(115, 70, BPCategory.Ideal)]
         public void Category_ComputesExpectedValues(int systolic, int diastolic, BPCategory expected)
         {
