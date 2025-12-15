@@ -42,13 +42,15 @@ jobs:
       - name: Unit tests with coverage (30% gate)
         run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=30 /p:ThresholdType=line /p:ThresholdStat=total
       - name: BDD tests
-        run: dotnet test BPCalculator.BddTests/BPCalculator.BddTests.csproj --no-build --results-directory ./TestResults/bdd
+        run: dotnet test BPCalculator.BddTests/BPCalculator.BddTests.csproj --no-build --results-directory ./TestResults/bdd --logger \"trx;LogFileName=bdd.trx\"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults
+          path: |
+            TestResults/unit
+            TestResults/bdd
 
       - name: Dependency vulnerability scan
         run: dotnet list package --vulnerable || true
@@ -58,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-unit
-          path: TestResults/unit
+          path: TestResults/unit/coverage.cobertura.xml
 
   codeql:
     needs: build-test
