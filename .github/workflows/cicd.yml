@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
-      url: ${{ secrets.AZURE_STAGING_URL }}
+      url: ${{ env.STAGING_URL }}
     permissions:
       contents: read
       issues: write
@@ -166,7 +166,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
+      url: https://${{ env.WEBAPP_NAME }}.azurewebsites.net
     permissions:
       contents: read
     env:
