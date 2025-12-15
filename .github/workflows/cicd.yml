@@ -166,11 +166,12 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://${{ env.WEBAPP_NAME }}.azurewebsites.net
+      url: ${{ env.PROD_URL }}
     permissions:
       contents: read
     env:
       WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+      PROD_URL: ${{ secrets.AZURE_PROD_URL }}
 
     steps:
       - name: Download web app artifact
@@ -186,8 +187,6 @@ jobs:
           package: publish
 
       - name: Telemetry / health verification gate
-        env:
-          PROD_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
         run: |
           echo "Waiting 30s for production to stabilise..." > release.log
           sleep 30
