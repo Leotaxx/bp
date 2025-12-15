@@ -55,13 +55,7 @@ jobs:
       - name: Dependency vulnerability scan
         run: dotnet list package --vulnerable || true
 
-      - name: Upload coverage (unit)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-unit
-          path: TestResults/unit/coverage.cobertura.xml
-
+     
   codeql:
     needs: build-test
     runs-on: ubuntu-latest
