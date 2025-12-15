@@ -6,7 +6,10 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL,
-    trace: 'retain-on-failure'
+    ignoreHTTPSErrors: true,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {

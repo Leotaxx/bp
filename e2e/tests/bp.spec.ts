@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test('user can calculate pulse pressure and category', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.locator('input[name="BP.Systolic"]').waitFor({ timeout: 10000 });
   await page.fill('input[name="BP.Systolic"]', '130');
   await page.fill('input[name="BP.Diastolic"]', '80');
   await page.click('text=Calculate');
