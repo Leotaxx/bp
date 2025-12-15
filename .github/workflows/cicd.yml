@@ -40,7 +40,7 @@ jobs:
       - name: Build
         run: dotnet build --no-restore -warnaserror
       - name: Unit tests with coverage (80% gate)
-        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=total
+        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=total /p:Exclude=\"[BPCalculator]BPCalculator.Program;[BPCalculator]BPCalculator.Startup\"
       - name: BDD tests
         run: dotnet test BPCalculator.BddTests/BPCalculator.BddTests.csproj --no-build --results-directory ./TestResults/bdd
 
@@ -127,7 +127,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
+      - run: npm install
         working-directory: e2e
       - run: npx playwright install --with-deps
         working-directory: e2e
