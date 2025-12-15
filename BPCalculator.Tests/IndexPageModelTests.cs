@@ -2,6 +2,7 @@ using BPCalculator.Pages;
 using BPCalculator.Telemetry;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Xunit;
 
 namespace BPCalculator.Tests
@@ -11,7 +12,7 @@ namespace BPCalculator.Tests
         private class TelemetryStub : IBPTelemetry
         {
             public int Calls { get; private set; }
-            public BloodPressure? Last { get; private set; }
+            public BloodPressure Last { get; private set; }
 
             public void TrackSubmission(BloodPressure bp)
             {
@@ -65,7 +66,7 @@ namespace BPCalculator.Tests
             pageModel.ModelState.IsValid.Should().BeTrue();
             telemetry.Calls.Should().Be(1);
             telemetry.Last.Should().NotBeNull();
-            telemetry.Last!.Category.Should().Be(BPCategory.PreHigh);
+            telemetry.Last.Category.Should().Be(BPCategory.PreHigh);
         }
     }
 }

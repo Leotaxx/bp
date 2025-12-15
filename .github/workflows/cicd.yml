@@ -82,6 +82,7 @@ jobs:
     environment: staging
     permissions:
       contents: read
+      issues: write
     env:
       WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
       STAGING_URL: ${{ secrets.AZURE_STAGING_URL }}
