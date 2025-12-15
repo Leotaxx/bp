@@ -32,5 +32,16 @@ namespace BPCalculator.Tests
 
             bp.PulseCategory.Should().Be(expected);
         }
+
+        [Theory]
+        [InlineData(80, 40, 40)]
+        [InlineData(120, 80, 40)]
+        [InlineData(150, 90, 60)]
+        public void PulsePressure_ComputesDifference(int systolic, int diastolic, int expected)
+        {
+            var bp = new BloodPressure { Systolic = systolic, Diastolic = diastolic };
+
+            bp.PulsePressure.Should().Be(expected);
+        }
     }
 }

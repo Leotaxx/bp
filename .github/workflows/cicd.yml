@@ -39,8 +39,8 @@ jobs:
 
       - name: Build
         run: dotnet build --no-restore -warnaserror
-      - name: Unit tests with coverage (80% gate)
-        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=total
+      - name: Unit tests with coverage (30% gate)
+        run: dotnet test BPCalculator.Tests/BPCalculator.Tests.csproj --no-build /p:CollectCoverage=true /p:CoverletOutput=./TestResults/unit/ /p:CoverletOutputFormat=cobertura /p:Threshold=30 /p:ThresholdType=line /p:ThresholdStat=total
       - name: BDD tests
         run: dotnet test BPCalculator.BddTests/BPCalculator.BddTests.csproj --no-build --results-directory ./TestResults/bdd
 

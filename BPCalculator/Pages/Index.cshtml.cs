@@ -31,6 +31,10 @@ namespace BPCalculator.Pages
             {
                 ModelState.AddModelError("", "Systolic must be greater than Diastolic");
             }
+            if (BP.PulsePressure < 0)
+            {
+                ModelState.AddModelError("", "Pulse pressure must be non-negative");
+            }
             if (ModelState.IsValid)
             {
                 _telemetry.TrackSubmission(BP);

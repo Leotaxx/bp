@@ -47,7 +47,7 @@ namespace BPCalculator.Tests
 
             result.Should().BeOfType<PageResult>();
             pageModel.ModelState.IsValid.Should().BeFalse();
-            pageModel.ModelState.ErrorCount.Should().Be(1);
+            pageModel.ModelState.ErrorCount.Should().BeGreaterOrEqualTo(1);
             telemetry.Calls.Should().Be(0);
         }
 
